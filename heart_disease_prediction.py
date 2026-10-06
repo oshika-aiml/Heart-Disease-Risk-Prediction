@@ -1,65 +1,72 @@
-!pip install ucimlrepo -q
-
 import pandas as pd
-from ucimlrepo import fetch_ucirepo
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, classification_report
 
-heart_disease = fetch_ucirepo(id=45)
+# Load UCI Heart Disease dataset
+url = "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"
 
-X_all = heart_disease.data.features
-y = heart_disease.data.targets
+columns = [
+    "age", "sex", "cp", "trestbps", "chol", "fbs",
+    "restecg", "thalach", "exang", "oldpeak",
+    "slope", "ca", "thal", "target"
+]
 
-y = y.iloc[:, 0].astype(int)
-y = (y > 0).astype(int)
-
-features = ['age', 'chol', 'trestbps', 'thalach']
-
-X = X_all[features].copy()
-X = X.apply(pd.to_numeric, errors='coerce')
-
-data = pd.concat([X, y], axis=1)
+data = pd.read_csv(url, names=columns, na_values="?")
 data = data.dropna()
 
-X = data[features]
-y = data.iloc[:, -1]
+# Select simple features
+X = data[["age", "chol", "trestbps", "thalach"]]
 
-print("Dataset loaded successfully!")
-print("Number of records:", len(data))
-print("\nFirst 5 rows:")
-print(data.head())
+# Convert target into 0 = No Disease, 1 = Disease
+y = (data["target"] > 0).astype(int)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
-model = Pipeline([('scaler', StandardScaler()), ('classifier', LogisticRegression(max_iter=1000))])
+# Create Machine Learning model
+model = Pipeline([
+    ("scaler", StandardScaler()),
+    ("classifier", LogisticRegression(max_iter=1000))
+])
 
+# Train model
+print("Training started...")
 model.fit(X_train, y_train)
+print("Training completed!")
 
-print("\nModel training completed!")
-
+# Test model
 y_pred = model.predict(X_test)
-
 accuracy = accuracy_score(y_test, y_pred)
 
-print("\nModel Accuracy:", round(accuracy * 100, 2), "%")
+print("\nHeart Disease Risk Prediction")
+print("--------------------------------")
+print("Test Accuracy:", round(accuracy * 100, 2), "%")
 
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
-new_patient = pd.DataFrame({'age': [55], 'chol': [240], 'trestbps': [140], 'thalach': [150]})
+# Test with a new patient
+new_patient = pd.DataFrame({
+    "age": [55],
+    "chol": [240],
+    "trestbps": [140],
+    "thalach": [150]
+})
 
-prediction = model.predict(new_patient)
+prediction = model.predict(new_patient)[0]
 
-print("\nNew Patient Information:")
-print("Age:", new_patient['age'].iloc[0])
-print("Cholesterol:", new_patient['chol'].iloc[0])
-print("Blood Pressure:", new_patient['trestbps'].iloc[0])
-print("Maximum Heart Rate:", new_patient['thalach'].iloc[0])
+print("\nNew Patient:")
+print("Age: 55")
+print("Cholesterol: 240")
+print("Blood Pressure: 140")
+print("Maximum Heart Rate: 150")
 
-labels = ["No-disease class", "Disease-present class"]
-print("\nPrediction:", labels[prediction[0]])
-
-print("\nNote: This project is for educational purposes only and is NOT a medical diagnosis.")
+if prediction == 1:
+    print("Prediction: Heart Disease Risk")
+else:
+    print("Prediction: No Heart Disease Risk")
